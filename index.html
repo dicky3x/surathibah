@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Generator Surat Register Hibah Langsung</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b1f24;--mu:#5b6570;--bd:#d6dbe1;--ac:#0b5cab;--wa:#fff4d6;--er:#fde2e2}
+@media(prefers-color-scheme:dark){:root{--bg:#14171b;--card:#1d2127;--tx:#e8ebef;--mu:#9aa5b1;--bd:#333a43;--ac:#5aa7f0;--wa:#3a3216;--er:#4a1f1f}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,sans-serif}
+main{max-width:720px;margin:0 auto;padding:16px}h1{font-size:20px;margin:8px 0 2px}p.s{color:var(--mu);margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:12px}
+h2{font-size:15px;margin:0 0 10px}.g{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:560px){.g{grid-template-columns:1fr}}
+label{display:block;font-size:13px;color:var(--mu);margin-bottom:3px}
+input,select,textarea{width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+.f{margin-bottom:10px}button{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:11px 16px;font:inherit;font-weight:600;width:100%;cursor:pointer}
+button:disabled{opacity:.5}.n{padding:9px 12px;border-radius:8px;margin:8px 0;font-size:13px}.w{background:var(--wa)}.e{background:var(--er)}
+#form{display:none}#crop{max-width:100%;border:1px solid var(--bd);border-radius:8px}
+</style>
+</head>
+<body>
+<main>
+<h1>📄 Generator Surat Register Hibah Langsung</h1>
+<p class="s">Penetapan Nomor Register Hibah Langsung — Kanwil DJPb Riau. Berkas diproses di browser kamu, tidak diunggah ke server.</p>
+
+<div class="card"><div class="g">
+<div><label>NPHD.pdf (naskah perjanjian hibah)</label><input type="file" id="fn" accept="application/pdf"></div>
+<div><label>pengantar.pdf (surat permohonan)</label><input type="file" id="fp" accept="application/pdf"></div>
+</div><div class="f" style="margin:10px 0 0"><label>Kode akses (isi jika diminta; untuk membaca tulisan tangan dengan AI)</label><input id="code" type="password" autocomplete="off"></div><div id="st" class="n w" style="display:none"></div></div>
+
+<div id="form">
+<div id="notes"></div>
+<div class="card"><h2>Data dari berkas (periksa &amp; koreksi)</h2><div class="g">
+<div class="f"><label>Satker penerima</label><input id="satker"></div>
+<div class="f"><label>Kode satker</label><input id="kode" placeholder="mis. 400141"></div>
+<div class="f"><label>⚠️ Nomor perjanjian hibah (NPHD)</label><input id="nonphd"></div>
+<div class="f"><label>Bentuk hibah</label><select id="bentuk"><option>Barang</option><option>Uang</option></select></div>
+<div class="f"><label>Nomor surat pengantar</label><input id="nopeng"></div>
+<div class="f"><label>Tanggal surat pengantar</label><input id="tglpeng"></div>
+</div>
+<div class="f"><label>Cuplikan NPHD halaman 1 — cocokkan dengan nomor perjanjian di atas</label><img id="crop" alt="Cuplikan NPHD"></div>
+<div class="f"><label>Pengirim pengantar</label><input id="pengirim"></div>
+<div class="f"><label>Pemberi hibah</label><input id="pemberi"></div></div>
+
+<div class="card"><h2>Data surat Kanwil</h2><div class="g">
+<div class="f"><label>Nomor surat</label><input id="nomor" value="S-     /WPB.04/2026"></div>
+<div class="f"><label>Tanggal surat</label><input type="date" id="tgl"></div>
+<div class="f"><label>Sifat</label><input id="sifat" value="Sangat Segera"></div>
+<div class="f"><label>Lampiran</label><input id="lampiran" value="Satu Berkas"></div>
+</div>
+<div class="f"><label>Jabatan penandatangan (satu baris per baris cetak)</label><textarea id="jabatan" rows="2">Kepala Kantor Wilayah Direktorat
+Jenderal Perbendaharaan Provinsi Riau</textarea></div>
+<div class="f"><label>Nama penandatangan</label><input id="ttd" value="Meirijal Nur"></div>
+<div class="f"><label>Tembusan (satu per baris)</label><textarea id="tembusan" rows="7"></textarea></div></div>
+
+<button id="go">Buat &amp; unduh PDF</button>
+<p class="s" style="margin-top:10px">Surat ini draf. Tanda tangan elektronik (TTE/BSrE) ditambahkan terpisah.</p>
+</div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const $=id=>document.getElementById(id);
+const BULAN=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const rapi=s=>(s||'').replace(/\s+/g,' ').trim();
+const tglIndo=v=>{const [y,m,d]=v.split('-').map(Number);return `${d} ${BULAN[m-1]} ${y}`};
+const kapital=s=>rapi(s).toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase()).replace(/ (Dan|Di|Untuk) /g,x=>x.toLowerCase());
+$('tgl').valueAsDate=new Date();
+try{$('code').value=localStorage.getItem('kode')||''}catch(e){}
+$('code').oninput=()=>{try{localStorage.setItem('kode',$('code').value)}catch(e){}};
+async function cropTop(file){
+  const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise,p=await pdf.getPage(1);
+  const vp=p.getViewport({scale:1400/p.getViewport({scale:1}).width}),cv=document.createElement('canvas');
+  cv.width=vp.width;cv.height=vp.height;
+  await p.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+  const h=Math.round(cv.height*.42),o=document.createElement('canvas'),c=o.getContext('2d');
+  o.width=cv.width;o.height=h;c.fillStyle='#fff';c.fillRect(0,0,o.width,h);c.drawImage(cv,0,0,cv.width,h,0,0,cv.width,h);
+  return o.toDataURL('image/jpeg',.85);
+}
+async function aiNomor(img){
+  const r=await fetch('/api/read-nomor',{method:'POST',headers:{'Content-Type':'application/json','x-access-code':$('code').value},body:JSON.stringify({image:img})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(j.error||'HTTP '+r.status);
+  return j;
+}
+
+async function readPdf(file){
+  const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+  let text='';
+  for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i);const c=await p.getTextContent();text+=c.items.map(x=>x.str).join(' ')+'\n'}
+  if(text.trim().length>=80)return{text,ocr:false};
+  text='';
+  for(let i=1;i<=pdf.numPages;i++){
+    $('st').textContent=`OCR halaman ${i}/${pdf.numPages} (file scan, mohon tunggu)…`;
+    const p=await pdf.getPage(i),vp=p.getViewport({scale:2.5}),cv=document.createElement('canvas');
+    cv.width=vp.width;cv.height=vp.height;
+    await p.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+    let r;try{r=await Tesseract.recognize(cv,'ind+eng')}catch(e){r=await Tesseract.recognize(cv,'eng')}
+    text+=r.data.text+'\n';
+  }
+  return{text,ocr:true};
+}
+function exNphd(raw){
+  const t=rapi(raw),all=[...t.matchAll(/NOMOR\s*:?\s*([\w.\-]+\/[\w.\-\/]+)/g)].map(m=>m[1].replace('/1X/','/IX/'));
+  const pem=all.filter(n=>!/\/(KPN|KPA|PN|PA|PTUN)[.\/]|KPN\./.test(n));
+  const m=t.match(/ANTARA\s+(.+?)\s+DENGAN\s+(.+?)\s+NOMOR/),tot=t.match(/Total.*?Rp\s*([\d.,]+)/);
+  return{no:pem[0]||'',pemberi:m?kapital(m[1]):'',penerima:m?kapital(m[2]):'',total:tot?tot[1]:''};
+}
+function exPeng(raw){
+  const t=rapi(raw),g=(re)=>{const m=t.match(re);return m?m[1]:''};
+  return{no:g(/Nomor\s*:\s*(\S+)/),tgl:g(/[A-Z][a-z]+,\s*(\d{1,2}\s+[A-Za-z]+\s+\d{4})/),
+    satker:g(/(Pengadilan\s+(?:Negeri|Agama|Tata Usaha Negara|Militer)\s+[A-Z][a-z]+)/),
+    pemberi:g(/berasal dari\s+(.+?)\s*\.\s/),pengirim:g(/(Sekretaris Pengadilan (?:Tinggi|Negeri|Agama)\s+[A-Z][a-z]+)/)};
+}
+function bentuk(...ts){
+  const t=ts.join(' ').toLowerCase(),b=(t.match(/\bbarang\b|serah terima|pagar|bangunan|\bunit\b/g)||[]).length,
+  u=(t.match(/\buang\b|rekening|transfer|rupiah|sp2hl|kas negara/g)||[]).length;
+  if(b>u)return['Barang',b>=2*Math.max(u,1)];if(u>b)return['Uang',u>=2*Math.max(b,1)];return['Barang',false];
+}
+const note=(c,h)=>`<div class="n ${c}">${h}</div>`;
+async function proses(){
+  if(!$('fn').files[0]||!$('fp').files[0])return;
+  const st=$('st');st.style.display='block';st.textContent='Membaca PDF…';$('form').style.display='none';
+  try{
+    const n=await readPdf($('fn').files[0]),p=await readPdf($('fp').files[0]);
+    const N=exNphd(n.text),P=exPeng(p.text),[bt,yk]=bentuk(n.text,p.text);
+    let ai=false,aiErr='';
+    try{
+      st.textContent='Membaca nomor perjanjian (tulisan tangan) dengan AI…';
+      const img=await cropTop($('fn').files[0]);$('crop').src=img;
+      try{const j=await aiNomor(img);if(j.nomor){N.no=j.nomor;ai=true}else aiErr='AI tidak menemukan nomor'}catch(e){aiErr=e.message}
+    }catch(e){aiErr=e.message}
+    const satker=P.satker||N.penerima,pem=P.pemberi||N.pemberi;
+    $('satker').value=satker;$('nonphd').value=N.no;$('bentuk').value=bt;$('nopeng').value=P.no;$('tglpeng').value=P.tgl;
+    $('pengirim').value=P.pengirim||'Sekretaris Pengadilan Tinggi Riau';$('pemberi').value=pem;
+    $('tembusan').value=['Direktur Jenderal Anggaran','Direktur Sistem Informasi dan Teknologi Perbendaharaan',
+      'Kepala Kantor Pelayanan Perbendaharaan Negara Tipe A1 Pekanbaru','Direktur Jenderal Badan Peradilan Umum MA',
+      pem?'Kepala '+pem:'','Ketua Badan Pemeriksa Keuangan RI'].filter(Boolean).join('\n');
+    let h='';
+    if(n.ocr||p.ocr)h+=note('w','Ada berkas scan yang dibaca dengan OCR. Nomor sering salah baca — <b>periksa kolom bertanda ⚠️</b>.');
+    if(ai)h+=note('w','Nomor perjanjian dibaca AI dari tulisan tangan — <b>cocokkan dengan cuplikan NPHD</b> di bawah dan koreksi bila perlu.');
+    else h+=note('w',`Nomor perjanjian (tulisan tangan) belum terbaca otomatis${aiErr?` (${aiErr})`:''}. Lihat cuplikan NPHD di bawah dan isi manual.`);
+    if(!yk)h+=note('w',`Bentuk hibah terdeteksi <b>${bt}</b> tapi kurang meyakinkan — pastikan benar.`);
+    if(N.penerima&&satker&&!satker.toLowerCase().includes(N.penerima.toLowerCase())&&!N.penerima.toLowerCase().includes(satker.toLowerCase()))
+      h+=note('e',`Penerima hibah di NPHD (“${N.penerima}”) berbeda dengan satker di pengantar (“${satker}”). Mohon dicek.`);
+    if(N.total)h+=note('w',`Nilai hibah terbaca di NPHD: Rp ${N.total} (info saja, tidak masuk surat).`);
+    $('notes').innerHTML=h;st.style.display='none';$('form').style.display='block';
+  }catch(e){st.className='n e';st.textContent='Gagal membaca PDF: '+e.message}
+}
+$('fn').onchange=$('fp').onchange=proses;
+
+const loadImg=src=>new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=src});
+$('go').onclick=async()=>{
+  const v=id=>$(id).value.trim(),bt=v('bentuk'),satker=v('satker'),kode=v('kode');
+  const d=new jsPDF({unit:'mm',format:'a4'});d.setLineHeightFactor(1.4);
+  const L=25,R=185,W=160,LH=5.2;let y=14;
+  try{d.addImage(await loadImg('assets/logo.png'),'PNG',L,y-1,20,18)}catch(e){}
+  const cx=(L+24+R)/2;
+  d.setFont('helvetica','bold').setFontSize(11.5);
+  for(const t of['KEMENTERIAN KEUANGAN REPUBLIK INDONESIA','DIREKTORAT JENDERAL PERBENDAHARAAN']){d.text(t,cx,y+2,{align:'center'});y+=5}
+  const k=d.splitTextToSize('KANTOR WILAYAH DIREKTORAT JENDERAL PERBENDAHARAAN PROVINSI RIAU',134);
+  for(const t of k){d.text(t,cx,y+2,{align:'center'});y+=5}
+  d.setFont('helvetica','normal').setFontSize(7);
+  const al=d.splitTextToSize('Jalan Jenderal Sudirman No. 249, Pekanbaru 28116; TELEPON (0761) 22686; FAKSIMILI (0761) 22647; SUREL : kanwildjpbriau@kemenkeu.go.id; SITUS : www.djpb.kemenkeu.go.id/kanwil/riau',134);
+  d.text(al,cx,y+1.5,{align:'center'});y+=al.length*3+3;
+  d.setLineWidth(.5).line(L,y,R,y);y+=8;
+  d.setFontSize(10.5);
+  const row=(a,b,right)=>{d.text(a,L,y);d.text(':',L+22,y);const ls=d.splitTextToSize(b,88);d.text(ls,L+27,y);if(right)d.text(right,R,y,{align:'right'});y+=Math.max(ls.length,1)*LH+1.5};
+  row('Nomor',v('nomor'),tglIndo($('tgl').value));row('Sifat',v('sifat'));row('Lampiran',v('lampiran'));
+  row('Hal',`Penetapan Nomor Register Hibah Langsung dalam Bentuk ${bt} untuk Satker ${satker}`);
+  y+=5;d.text(`Yth. KPA Satker ${satker}${kode?` (${kode})`:''}`,L,y);y+=9;
+  const para=t=>{const n=d.splitTextToSize(t,W).length;d.text(t,L,y,{align:'justify',maxWidth:W});y+=n*LH+3};
+  para(`Sehubungan dengan Surat ${v('pengirim')} Nomor: ${v('nopeng')} tanggal ${v('tglpeng')}, dengan ini kami sampaikan penetapan Nomor Register Hibah Langsung dalam bentuk ${bt} yang diterima ${satker} dengan nomor perjanjian hibah ${v('nonphd')} sebagaimana terlampir.`);
+  para(`Selanjutnya, Saudara agar memedomani ketentuan yang ada pada Peraturan Menteri Keuangan Nomor 99/PMK.05/2017 tentang Administrasi Pengelolaan Hibah, khususnya yang terkait dengan pengesahan dan pencatatan pendapatan hibah langsung dan belanja yang bersumber dari hibah langsung dalam bentuk ${bt}.`);
+  para('Atas perhatian Saudara, kami ucapkan terima kasih.');
+  y+=8;const jb=v('jabatan').split('\n');d.text(jb,L+65,y);y+=jb.length*LH+18;d.text(v('ttd'),L+65,y);y+=12;
+  d.text('Tembusan:',L,y);y+=LH;
+  v('tembusan').split('\n').map(s=>s.trim()).filter(Boolean).forEach((s,i)=>{
+    const ls=d.splitTextToSize(s,W-6);d.text(`${i+1}.`,L,y);d.text(ls,L+5,y);y+=ls.length*(LH-.5)});
+  d.save(`Penetapan Register Hibah - ${satker}.pdf`);
+};
+</script>
+</body>
+</html>
